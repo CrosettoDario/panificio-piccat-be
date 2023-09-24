@@ -1,7 +1,17 @@
+import { } from 'dotenv/config';
+
+import { createProduct, deleteProduct, getProducts, modifyProduct } from "./routes/product.js";
+import { getClientProducts, getClients } from "./routes/client.js";
+import { login, register } from './routes/auth.js';
+
 import bodyParser from "body-parser";
-import { createClient } from '@supabase/supabase-js'
+import cors from 'cors';
+import { createClient } from '@supabase/supabase-js';
 import express from 'express';
 import morgan from 'morgan';
+import { verifyToken } from './routes/middleware.js';
+
+// Genera una chiave segreta casuale di 32 byte (256 bit)
 
 // Carica le variabili d'ambiente dal file .env
 const app = express();
@@ -12,71 +22,48 @@ app.use(morgan('combined'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+app.use(cors());
+
 const supabase = createClient(
     'https://naogstaeavbglbjavpcm.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hb2dzdGFlYXZiZ2xiamF2cGNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTUyOTM4NTEsImV4cCI6MjAxMDg2OTg1MX0.1MYpR9_Cw01VOTXH_Ae3CKaQwwvYXRVW4GQml9K-jOM',
+    process.env.SUPABASE_KEY,
 );
 
 
 // Crea un singolo client Supabase per interagire con il tuo database
-app.get("/clients/:idClient/products", async (req, res) => {
-    try {
-        const { idClient } = req.params
-        let { data, error } = await supabase
-            .from('ProductClientDay')
-            .select(`
-                dayOfWeek,
-                Clients (
-                    name
-                ),
-                Products (
-                    name
-                )
-            `)
-            .filter("idClient", "eq", idClient.toString())
-
-        // Invia i dati come risposta HTTP
-        res.json({ data });
-
-    } catch (err) {
-        // Gestione degli errori generici
-        console.error('Errore generico:', err);
-        res.status(500).json({ error: 'Errore generico' });
-    }
+app.get("/clients/:idClient/products", verifyToken, async (req, res) => {
+    await getClientProducts(req, res, supabase)
 });
 
-app.get("/clients", async (req, res) => {
-    try {
-        let { data, error } = await supabase
-            .from('Clients')
-            .select()
-
-        // Invia i dati come risposta HTTP
-        res.json({ data });
-
-    } catch (err) {
-        // Gestione degli errori generici
-        console.error('Errore generico:', err);
-        res.status(500).json({ error: 'Errore generico' });
-    }
+app.get("/clients", verifyToken, async (req, res) => {
+    await getClients(req, res, supabase)
 });
 
-app.get("/products", async (req, res) => {
-    try {
-        let { data, error } = await supabase
-            .from('Products')
-            .select()
-
-        // Invia i dati come risposta HTTP
-        res.json({ data });
-
-    } catch (err) {
-        // Gestione degli errori generici
-        console.error('Errore generico:', err);
-        res.status(500).json({ error: 'Errore generico' });
-    }
+app.get("/products", verifyToken ,async (req, res) => {
+    await getProducts(req, res, supabase)
 });
 
+app.put("/products/:productId", verifyToken, async (req, res) => {
+    await modifyProduct(req, res, supabase)
+});
+
+app.delete("/products/:productId", verifyToken, async (req, res) => {
+    await deleteProduct(req, res, supabase)
+});
+
+
+app.post("/products", verifyToken, async (req, res) => {
+    await createProduct(req, res, supabase)
+});
+
+app.post("/register", async (req, res) => {
+    await register(req, res, supabase)
+});
+
+// Login
+app.post("/login", async (req, res) => {
+    await login(req, res, supabase)
+});
 
 app.listen(8080, () => {
     console.log("Running on port 8080.");
